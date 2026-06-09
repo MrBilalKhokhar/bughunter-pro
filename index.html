@@ -1,0 +1,1371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BugHunter Pro â Secure Dashboard</title>
+<style>
+  :root {
+    --bg: #0a0e1a;
+    --bg2: #0f1423;
+    --bg3: #141928;
+    --card: #161c2e;
+    --border: #1e2d4a;
+    --accent: #00d4ff;
+    --accent2: #7c3aed;
+    --green: #00ff88;
+    --red: #ff3366;
+    --orange: #ff8c00;
+    --yellow: #ffd700;
+    --text: #e2e8f0;
+    --muted: #64748b;
+    --critical: #ff3366;
+    --high: #ff8c00;
+    --medium: #ffd700;
+    --low: #00ff88;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:var(--bg); color:var(--text); font-family:'Segoe UI',system-ui,sans-serif; min-height:100vh; }
+
+  /* LOGIN */
+  #loginScreen {
+    position:fixed; inset:0; background:var(--bg);
+    display:flex; align-items:center; justify-content:center; z-index:999;
+  }
+  .login-box {
+    background:var(--card); border:1px solid var(--border);
+    border-radius:16px; padding:48px 40px; width:380px; text-align:center;
+    box-shadow:0 0 60px rgba(0,212,255,0.08);
+  }
+  .login-box .logo { font-size:42px; margin-bottom:8px; }
+  .login-box h2 { font-size:22px; font-weight:700; color:var(--accent); margin-bottom:4px; }
+  .login-box p { color:var(--muted); font-size:13px; margin-bottom:28px; }
+  .login-box input {
+    width:100%; padding:12px 16px; background:var(--bg3); border:1px solid var(--border);
+    border-radius:8px; color:var(--text); font-size:15px; margin-bottom:14px; outline:none;
+    transition:border .2s;
+  }
+  .login-box input:focus { border-color:var(--accent); }
+  .login-box button {
+    width:100%; padding:13px; background:linear-gradient(135deg,var(--accent2),var(--accent));
+    border:none; border-radius:8px; color:#fff; font-size:15px; font-weight:600;
+    cursor:pointer; transition:opacity .2s;
+  }
+  .login-box button:hover { opacity:.85; }
+  .login-err { color:var(--red); font-size:13px; margin-top:10px; display:none; }
+
+  /* LAYOUT */
+  #app { display:none; }
+  .sidebar {
+    position:fixed; left:0; top:0; bottom:0; width:220px;
+    background:var(--bg2); border-right:1px solid var(--border);
+    display:flex; flex-direction:column; padding:20px 0;
+  }
+  .sidebar-logo { padding:0 20px 20px; border-bottom:1px solid var(--border); margin-bottom:12px; }
+  .sidebar-logo span { font-size:18px; font-weight:800; color:var(--accent); }
+  .sidebar-logo small { display:block; color:var(--muted); font-size:11px; }
+  .nav-item {
+    display:flex; align-items:center; gap:10px; padding:11px 20px;
+    color:var(--muted); cursor:pointer; font-size:14px; font-weight:500;
+    transition:all .15s; border-left:3px solid transparent;
+  }
+  .nav-item:hover { background:var(--bg3); color:var(--text); }
+  .nav-item.active { color:var(--accent); background:rgba(0,212,255,.06); border-left-color:var(--accent); }
+  .nav-icon { font-size:16px; width:20px; text-align:center; }
+  .sidebar-footer { margin-top:auto; padding:16px 20px; border-top:1px solid var(--border); }
+  .logout-btn {
+    width:100%; padding:9px; background:rgba(255,51,102,.1); border:1px solid rgba(255,51,102,.2);
+    border-radius:7px; color:var(--red); font-size:13px; cursor:pointer; font-weight:600;
+  }
+  .logout-btn:hover { background:rgba(255,51,102,.2); }
+
+  .main { margin-left:220px; padding:28px 32px; min-height:100vh; }
+  .page { display:none; }
+  .page.active { display:block; }
+  .page-title { font-size:24px; font-weight:700; margin-bottom:6px; }
+  .page-sub { color:var(--muted); font-size:13px; margin-bottom:28px; }
+
+  /* STATS GRID */
+  .stats-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:28px; }
+  .stat-card {
+    background:var(--card); border:1px solid var(--border); border-radius:12px; padding:20px;
+  }
+  .stat-card .label { color:var(--muted); font-size:12px; text-transform:uppercase; letter-spacing:.5px; margin-bottom:8px; }
+  .stat-card .value { font-size:32px; font-weight:800; }
+  .stat-card .sub { color:var(--muted); font-size:12px; margin-top:4px; }
+  .c-critical { color:var(--critical); }
+  .c-high { color:var(--high); }
+  .c-accent { color:var(--accent); }
+  .c-green { color:var(--green); }
+
+  /* CARDS & TABLES */
+  .card {
+    background:var(--card); border:1px solid var(--border); border-radius:12px;
+    padding:22px; margin-bottom:20px;
+  }
+  .card-title { font-size:15px; font-weight:700; margin-bottom:16px; display:flex; align-items:center; justify-content:space-between; }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th { color:var(--muted); font-weight:600; text-align:left; padding:10px 12px; border-bottom:1px solid var(--border); font-size:11px; text-transform:uppercase; letter-spacing:.5px; }
+  td { padding:12px 12px; border-bottom:1px solid rgba(30,45,74,.5); vertical-align:middle; }
+  tr:last-child td { border-bottom:none; }
+  tr:hover td { background:rgba(255,255,255,.02); }
+
+  /* BADGES */
+  .badge {
+    display:inline-block; padding:3px 10px; border-radius:20px; font-size:11px; font-weight:700; text-transform:uppercase;
+  }
+  .badge-critical { background:rgba(255,51,102,.15); color:var(--critical); border:1px solid rgba(255,51,102,.3); }
+  .badge-high { background:rgba(255,140,0,.15); color:var(--high); border:1px solid rgba(255,140,0,.3); }
+  .badge-medium { background:rgba(255,215,0,.12); color:var(--yellow); border:1px solid rgba(255,215,0,.25); }
+  .badge-low { background:rgba(0,255,136,.1); color:var(--low); border:1px solid rgba(0,255,136,.2); }
+  .badge-new { background:rgba(0,212,255,.12); color:var(--accent); border:1px solid rgba(0,212,255,.25); }
+  .badge-reported { background:rgba(124,58,237,.15); color:#a78bfa; border:1px solid rgba(124,58,237,.3); }
+  .badge-acknowledged { background:rgba(255,215,0,.12); color:var(--yellow); border:1px solid rgba(255,215,0,.25); }
+  .badge-paid { background:rgba(0,255,136,.1); color:var(--low); border:1px solid rgba(0,255,136,.2); }
+  .badge-rejected { background:rgba(255,51,102,.1); color:var(--red); border:1px solid rgba(255,51,102,.2); }
+
+  /* BUTTONS */
+  .btn {
+    padding:9px 18px; border-radius:8px; font-size:13px; font-weight:600;
+    cursor:pointer; border:none; transition:all .15s;
+  }
+  .btn-primary { background:linear-gradient(135deg,var(--accent2),var(--accent)); color:#fff; }
+  .btn-primary:hover { opacity:.85; }
+  .btn-outline { background:transparent; border:1px solid var(--border); color:var(--text); }
+  .btn-outline:hover { border-color:var(--accent); color:var(--accent); }
+  .btn-danger { background:rgba(255,51,102,.15); border:1px solid rgba(255,51,102,.3); color:var(--red); }
+  .btn-danger:hover { background:rgba(255,51,102,.25); }
+  .btn-sm { padding:5px 12px; font-size:12px; }
+  .btn-green { background:rgba(0,255,136,.12); border:1px solid rgba(0,255,136,.25); color:var(--green); }
+
+  /* FORMS */
+  .form-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  .form-group { display:flex; flex-direction:column; gap:6px; }
+  .form-group.full { grid-column:1/-1; }
+  label { font-size:12px; font-weight:600; color:var(--muted); text-transform:uppercase; letter-spacing:.4px; }
+  input, select, textarea {
+    padding:10px 14px; background:var(--bg3); border:1px solid var(--border);
+    border-radius:8px; color:var(--text); font-size:14px; outline:none;
+    transition:border .15s; font-family:inherit;
+  }
+  input:focus, select:focus, textarea:focus { border-color:var(--accent); }
+  textarea { resize:vertical; min-height:90px; }
+  select option { background:var(--bg3); }
+
+  /* MODAL */
+  .modal-overlay {
+    position:fixed; inset:0; background:rgba(0,0,0,.7); z-index:100;
+    display:none; align-items:center; justify-content:center;
+  }
+  .modal-overlay.open { display:flex; }
+  .modal {
+    background:var(--card); border:1px solid var(--border); border-radius:14px;
+    padding:28px; width:680px; max-width:95vw; max-height:90vh; overflow-y:auto;
+    box-shadow:0 20px 60px rgba(0,0,0,.5);
+  }
+  .modal-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:22px; }
+  .modal-header h3 { font-size:17px; font-weight:700; }
+  .modal-close { background:none; border:none; color:var(--muted); font-size:20px; cursor:pointer; padding:4px 8px; }
+  .modal-close:hover { color:var(--text); }
+  .modal-footer { display:flex; gap:10px; justify-content:flex-end; margin-top:22px; padding-top:18px; border-top:1px solid var(--border); }
+
+  /* EMAIL PREVIEW */
+  .email-preview {
+    background:var(--bg3); border:1px solid var(--border); border-radius:8px;
+    padding:16px; font-size:13px; line-height:1.7; white-space:pre-wrap;
+    font-family:'Courier New',monospace; color:#c9d1e0; max-height:340px; overflow-y:auto;
+  }
+
+  /* TOOL REFERENCE */
+  .tool-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; }
+  .tool-card {
+    background:var(--bg3); border:1px solid var(--border); border-radius:10px; padding:16px;
+  }
+  .tool-card h4 { font-size:13px; font-weight:700; color:var(--accent); margin-bottom:6px; }
+  .tool-card p { font-size:12px; color:var(--muted); line-height:1.5; }
+  .tool-card .tool-tags { margin-top:8px; display:flex; flex-wrap:wrap; gap:4px; }
+  .tool-tag { background:rgba(0,212,255,.08); color:var(--accent); border-radius:4px; padding:2px 7px; font-size:10px; font-weight:600; }
+
+  /* VULN CHECKLIST */
+  .checklist { list-style:none; }
+  .checklist li {
+    display:flex; align-items:flex-start; gap:10px; padding:9px 0;
+    border-bottom:1px solid rgba(30,45,74,.5); font-size:13px;
+  }
+  .checklist li:last-child { border-bottom:none; }
+  .check-dot { width:8px; height:8px; border-radius:50%; margin-top:5px; flex-shrink:0; }
+  .dot-red { background:var(--red); }
+  .dot-orange { background:var(--orange); }
+  .dot-yellow { background:var(--yellow); }
+  .dot-green { background:var(--green); }
+
+  /* SEARCH & FILTER BAR */
+  .toolbar { display:flex; gap:10px; margin-bottom:16px; flex-wrap:wrap; }
+  .toolbar input { flex:1; min-width:200px; }
+  .toolbar select { width:160px; }
+
+  /* NOTIFY */
+  .notify {
+    position:fixed; bottom:24px; right:24px; padding:13px 20px;
+    background:var(--card); border:1px solid var(--green); border-radius:10px;
+    color:var(--green); font-size:13px; font-weight:600; z-index:999;
+    box-shadow:0 8px 24px rgba(0,0,0,.4); display:none;
+  }
+  .notify.err { border-color:var(--red); color:var(--red); }
+
+  /* RESPONSIVE tweak */
+  @media(max-width:900px) {
+    .stats-grid { grid-template-columns:1fr 1fr; }
+    .tool-grid { grid-template-columns:1fr 1fr; }
+    .form-grid { grid-template-columns:1fr; }
+  }
+
+  /* SCROLLBAR */
+  ::-webkit-scrollbar { width:5px; }
+  ::-webkit-scrollbar-track { background:var(--bg); }
+  ::-webkit-scrollbar-thumb { background:var(--border); border-radius:3px; }
+
+  .divider { height:1px; background:var(--border); margin:18px 0; }
+  .flex-row { display:flex; gap:10px; align-items:center; }
+  .spacer { flex:1; }
+  .text-muted { color:var(--muted); font-size:12px; }
+  .program-row { display:flex; align-items:center; gap:12px; padding:10px 0; border-bottom:1px solid rgba(30,45,74,.5); }
+  .program-row:last-child { border-bottom:none; }
+  .program-name { font-weight:600; font-size:14px; }
+  .program-scope { color:var(--muted); font-size:12px; }
+</style>
+</head>
+<body>
+
+<!-- LOGIN SCREEN -->
+<div id="loginScreen">
+  <div class="login-box">
+    <div class="logo">ð¡ï¸</div>
+    <h2>BugHunter Pro</h2>
+    <p>Secure Bug Bounty Operations Dashboard</p>
+    <input type="text" id="loginUser" placeholder="Username" autocomplete="off" />
+    <input type="password" id="loginPass" placeholder="Password" />
+    <button onclick="doLogin()">ENTER DASHBOARD</button>
+    <div class="login-err" id="loginErr">â Invalid credentials. Try again.</div>
+    <p style="margin-top:16px;font-size:11px;color:var(--muted)">Default: admin / BugHunter@2024</p>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="sidebar-logo">
+      <span>ð¡ï¸ BugHunter Pro</span>
+      <small>v2.0 â Secure Ops</small>
+    </div>
+    <div class="nav-item active" onclick="showPage('dashboard')">
+      <span class="nav-icon">ð</span> Dashboard
+    </div>
+    <div class="nav-item" onclick="showPage('findings')">
+      <span class="nav-icon">ð</span> Bug Findings
+    </div>
+    <div class="nav-item" onclick="showPage('email')">
+      <span class="nav-icon">ð§</span> Email Agent
+    </div>
+    <div class="nav-item" onclick="showPage('programs')">
+      <span class="nav-icon">ð¯</span> Programs
+    </div>
+    <div class="nav-item" onclick="showPage('tools')">
+      <span class="nav-icon">ð§</span> Tools & Recon
+    </div>
+    <div class="nav-item" onclick="showPage('vulns')">
+      <span class="nav-icon">â¡</span> Vuln Checklist
+    </div>
+    <div class="nav-item" onclick="showPage('settings')">
+      <span class="nav-icon">âï¸</span> Settings
+    </div>
+    <div class="sidebar-footer">
+      <div style="font-size:11px;color:var(--muted);margin-bottom:8px;" id="sidebarUser"></div>
+      <button class="logout-btn" onclick="doLogout()">ð Logout</button>
+    </div>
+  </div>
+
+  <div class="main">
+
+    <!-- âââââââââââ DASHBOARD âââââââââââ -->
+    <div class="page active" id="page-dashboard">
+      <div class="page-title">Operations Dashboard</div>
+      <div class="page-sub">Your bug bounty command center</div>
+      <div class="stats-grid" id="statsGrid"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+        <div class="card">
+          <div class="card-title">Recent Findings</div>
+          <table>
+            <thead><tr><th>Target</th><th>Type</th><th>Severity</th><th>Status</th></tr></thead>
+            <tbody id="recentFindings"></tbody>
+          </table>
+        </div>
+        <div class="card">
+          <div class="card-title">Bounty Tracker ð°</div>
+          <table>
+            <thead><tr><th>Target</th><th>Bug Type</th><th>Amount</th><th>Status</th></tr></thead>
+          <tbody id="bountyTracker"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="card" style="margin-top:4px;">
+        <div class="card-title">â¡ Quick Actions</div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+          <button class="btn btn-primary" onclick="openModal('addFindingModal')">+ Log New Bug</button>
+          <button class="btn btn-outline" onclick="showPage('email')">ð§ Write Disclosure Email</button>
+          <button class="btn btn-outline" onclick="showPage('programs')">ð¯ Browse Programs</button>
+          <button class="btn btn-outline" onclick="showPage('tools')">ð§ Recon Tools</button>
+          <button class="btn btn-outline" onclick="exportData()">ð¥ Export All Data</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- âââââââââââ BUG FINDINGS âââââââââââ -->
+    <div class="page" id="page-findings">
+      <div class="page-title">Bug Findings Log</div>
+      <div class="page-sub">Track every vulnerability you discover</div>
+      <div class="toolbar">
+        <input type="text" id="searchFindings" placeholder="ð Search findings..." oninput="renderFindings()" />
+        <select id="filterSeverity" onchange="renderFindings()">
+          <option value="">All Severities</option>
+          <option value="Critical">Critical</option>
+          <option value="High">High</option>
+          <option value="Medium">Medium</option>
+          <option value="Low">Low</option>
+        </select>
+        <select id="filterStatus" onchange="renderFindings()">
+          <option value="">All Statuses</option>
+          <option value="New">New</option>
+          <option value="Reported">Reported</option>
+          <option value="Acknowledged">Acknowledged</option>
+          <option value="Paid">Paid</option>
+          <option value="Rejected">Rejected</option>
+        </select>
+        <button class="btn btn-primary" onclick="openModal('addFindingModal')">+ Add Finding</button>
+      </div>
+      <div class="card" style="padding:0">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th><th>Target / URL</th><th>Vulnerability</th><th>Severity</th>
+              <th>Status</th><th>Bounty</th><th>Date</th><th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="findingsTable"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- âââââââââââ EMAIL AGENT âââââââââââ -->
+    <div class="page" id="page-email">
+      <div class="page-title">Email Disclosure Agent</div>
+      <div class="page-sub">Generate professional responsible disclosure emails instantly</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+        <div class="card">
+          <div class="card-title">ð Email Generator</div>
+          <div class="form-group" style="margin-bottom:12px;">
+            <label>Email Type</label>
+            <select id="emailType" onchange="generateEmail()">
+              <option value="initial">Initial Disclosure</option>
+              <option value="followup">Follow-Up (No Response)</option>
+              <option value="offer">Bug Fix Offer</option>
+              <option value="payment">Payment Request</option>
+              <option value="thankyou">Thank You + Invoice</option>
+              <option value="escalate">Escalation (30 days)</option>
+            </select>
+          </div>
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Your Name</label>
+              <input id="emailYourName" placeholder="Your full name" oninput="generateEmail()" />
+            </div>
+            <div class="form-group">
+              <label>Company Name</label>
+              <input id="emailCompany" placeholder="Target company" oninput="generateEmail()" />
+            </div>
+            <div class="form-group">
+              <label>Vulnerability Type</label>
+              <input id="emailVulnType" placeholder="e.g. SQL Injection" oninput="generateEmail()" />
+            </div>
+            <div class="form-group">
+              <label>Affected URL/System</label>
+              <input id="emailURL" placeholder="https://..." oninput="generateEmail()" />
+            </div>
+            <div class="form-group">
+              <label>Severity</label>
+              <select id="emailSeverity" onchange="generateEmail()">
+                <option value="Critical">Critical</option>
+                <option value="High">High</option>
+                <option value="Medium">Medium</option>
+                <option value="Low">Low</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Requested Bounty ($)</label>
+              <input id="emailBounty" placeholder="e.g. 500" oninput="generateEmail()" />
+            </div>
+            <div class="form-group full">
+              <label>Brief Description</label>
+              <textarea id="emailDesc" placeholder="Short description of the vulnerability..." oninput="generateEmail()"></textarea>
+            </div>
+          </div>
+          <div style="margin-top:14px;display:flex;gap:8px;">
+            <button class="btn btn-primary" onclick="copyEmail()">ð Copy Email</button>
+            <button class="btn btn-outline" onclick="openGmail()">ð¤ Open Gmail</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">ð¬ Email Preview</div>
+          <div style="margin-bottom:10px;font-size:12px;color:var(--muted)">
+            <strong style="color:var(--text)">To:</strong> security@<span id="prevCompany">company</span>.com &nbsp;|&nbsp;
+            <strong style="color:var(--text)">Subject:</strong> <span id="prevSubject">â</span>
+          </div>
+          <div class="email-preview" id="emailPreview">Fill in the form to generate your professional disclosure email...</div>
+          <div class="divider"></div>
+          <div class="card-title" style="font-size:13px;">ð Email History</div>
+          <div id="emailHistory" style="font-size:12px;color:var(--muted);">No emails sent yet.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- âââââââââââ PROGRAMS âââââââââââ -->
+    <div class="page" id="page-programs">
+      <div class="page-title">Bug Bounty Programs</div>
+      <div class="page-sub">Track your enrolled programs and targets</div>
+      <div class="toolbar">
+        <button class="btn btn-primary" onclick="openModal('addProgramModal')">+ Add Program</button>
+        <button class="btn btn-outline" onclick="window.open('https://hackerone.com/programs','_blank')">ð HackerOne</button>
+        <button class="btn btn-outline" onclick="window.open('https://bugcrowd.com/programs','_blank')">ð Bugcrowd</button>
+        <button class="btn btn-outline" onclick="window.open('https://www.intigriti.com/programs','_blank')">ð Intigriti</button>
+        <button class="btn btn-outline" onclick="window.open('https://yeswehack.com/programs','_blank')">ð YesWeHack</button>
+      </div>
+      <div class="card">
+        <div id="programsList"></div>
+      </div>
+    </div>
+
+    <!-- âââââââââââ TOOLS & RECON âââââââââââ -->
+    <div class="page" id="page-tools">
+      <div class="page-title">Tools & Recon Reference</div>
+      <div class="page-sub">Professional toolkit for ethical bug bounty research</div>
+      <div class="card">
+        <div class="card-title">ð Reconnaissance Tools</div>
+        <div class="tool-grid">
+          <div class="tool-card">
+            <h4>Subfinder / Amass</h4>
+            <p>Subdomain enumeration â find all subdomains of a target to expand attack surface.</p>
+            <div class="tool-tags"><span class="tool-tag">Recon</span><span class="tool-tag">Subdomain</span></div>
+          </div>
+          <div class="tool-card">
+            <h4>Shodan / Censys</h4>
+            <p>Internet-wide port scanning and service fingerprinting. Find exposed services.</p>
+            <div class="tool-tags"><span class="tool-tag">OSINT</span><span class="tool-tag">Recon</span></div>
+          </div>
+          <div class="tool-card">
+            <h4>Waybackurls / GAU</h4>
+            <p>Pull historical URLs from Wayback Machine to find forgotten endpoints.</p>
+            <div class="tool-tags"><span class="tool-tag">OSINT</span><span class="tool-tag">URLs</span></div>
+          </div>
+          <div class="tool-card">
+            <h4>Nmap</h4>
+            <p>Port/service scanning on authorized targets. Map open services and versions.</p>
+            <div class="tool-tags"><span class="tool-tag">Network</span><span class="tool-tag">Scanning</span></div>
+          </div>
+          <div class="tool-card">
+            <h4>Nuclei</h4>
+            <p>Template-based vulnerability scanner. Run known CVE checks on authorized targets.</p>
+            <div class="tool-tags"><span class="tool-tag">Scanner</span><span class="tool-tag">CVE</span></div>
+          </div>
+          <div class="tool-card">
+            <h4>Burp Suite</h4>
+            <p>Web application proxy. Intercept, modify, replay HTTP requests for manual testing.</p>
+            <div class="tool-tags"><span class="tool-tag">Web</span><span class="tool-tag">Proxy</span></div>
+          </div>
+          <div class="tool-card">
+            <h4>ffuf / GoBuster</h4>
+            <p>Directory/file fuzzing. Find hidden endpoints, admin panels, backup files.</p>
+            <div class="tool-tags"><span class="tool-tag">Fuzzing</span><span class="tool-tag">Web</span></div>
+          </div>
+          <div class="tool-card">
+            <h4>SQLMap</h4>
+            <p>Automated SQL injection detection on authorized targets.</p>
+            <div class="tool-tags"><span class="tool-tag">SQLi</span><span class="tool-tag">Database</span></div>
+          </div>
+          <div class="tool-card">
+            <h4>theHarvester</h4>
+            <p>Gather emails, subdomains, IPs from public sources for OSINT recon.</p>
+            <div class="tool-tags"><span class="tool-tag">OSINT</span><span class="tool-tag">Email</span></div>
+          </div>
+          <div class="tool-card">
+            <h4>Metasploit</h4>
+            <p>Exploitation framework for confirmed vulns on authorized systems only.</p>
+            <div class="tool-tags"><span class="tool-tag">Exploitation</span><span class="tool-tag">Auth only</span></div>
+          </div>
+          <div class="tool-card">
+            <h4>WPScan</h4>
+            <p>WordPress vulnerability scanner â plugin/theme CVEs, user enum.</p>
+            <div class="tool-tags"><span class="tool-tag">WordPress</span><span class="tool-tag">CMS</span></div>
+          </div>
+          <div class="tool-card">
+            <h4>Nikto</h4>
+            <p>Web server scanner for misconfigurations, outdated software, default files.</p>
+            <div class="tool-tags"><span class="tool-tag">Web</span><span class="tool-tag">Misconfig</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">ð Online Recon Platforms</div>
+        <div class="tool-grid">
+          <div class="tool-card">
+            <h4>VirusTotal</h4>
+            <p>Check IPs, domains, files for known malicious activity or CVEs.</p>
+            <div class="tool-tags"><span class="tool-tag">OSINT</span></div>
+          </div>
+          <div class="tool-card">
+            <h4>crt.sh</h4>
+            <p>SSL certificate transparency logs â find all subdomains via certs.</p>
+            <div class="tool-tags"><span class="tool-tag">Subdomain</span><span class="tool-tag">SSL</span></div>
+          </div>
+          <div class="tool-card">
+            <h4>Hunter.io</h4>
+            <p>Find security contact emails for responsible disclosure.</p>
+            <div class="tool-tags"><span class="tool-tag">Email</span><span class="tool-tag">Contact</span></div>
+          </div>
+          <div class="tool-card">
+            <h4>SecurityTrails</h4>
+            <p>Historical DNS, IP, and subdomain data for deep recon.</p>
+            <div class="tool-tags"><span class="tool-tag">DNS</span><span class="tool-tag">OSINT</span></div>
+          </div>
+          <div class="tool-card">
+            <h4>LeakIX</h4>
+            <p>Find exposed services and leaked data in public indexes.</p>
+            <div class="tool-tags"><span class="tool-tag">Recon</span><span class="tool-tag">Leaks</span></div>
+          </div>
+          <div class="tool-card">
+            <h4>FOFA / ZoomEye</h4>
+            <p>Chinese alternatives to Shodan for global service discovery.</p>
+            <div class="tool-tags"><span class="tool-tag">Recon</span><span class="tool-tag">OSINT</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- âââââââââââ VULN CHECKLIST âââââââââââ -->
+    <div class="page" id="page-vulns">
+      <div class="page-title">Vulnerability Checklist</div>
+      <div class="page-sub">Systematic checks for every engagement â never miss a bug class</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+        <div class="card">
+          <div class="card-title">ð´ Critical / High Priority</div>
+          <ul class="checklist">
+            <li><div class="check-dot dot-red"></div><div><strong>SQL Injection (SQLi)</strong><br><span class="text-muted">Manual + sqlmap. Test all input params, cookies, headers</span></div></li>
+            <li><div class="check-dot dot-red"></div><div><strong>Remote Code Execution (RCE)</strong><br><span class="text-muted">File uploads, deserialization, template injection (SSTI)</span></div></li>
+            <li><div class="check-dot dot-red"></div><div><strong>Authentication Bypass</strong><br><span class="text-muted">JWT flaws, default creds, broken session tokens</span></div></li>
+            <li><div class="check-dot dot-red"></div><div><strong>Insecure Direct Object Reference (IDOR)</strong><br><span class="text-muted">Change user IDs, order IDs in requests â access others' data</span></div></li>
+            <li><div class="check-dot dot-red"></div><div><strong>Server-Side Request Forgery (SSRF)</strong><br><span class="text-muted">URL parameters that fetch external resources â internal network</span></div></li>
+            <li><div class="check-dot dot-orange"></div><div><strong>Cross-Site Scripting (XSS)</strong><br><span class="text-muted">Reflected, stored, DOM-based. Test all input fields</span></div></li>
+            <li><div class="check-dot dot-orange"></div><div><strong>Broken Access Control</strong><br><span class="text-muted">Horizontal/vertical privilege escalation. Access admin endpoints</span></div></li>
+            <li><div class="check-dot dot-orange"></div><div><strong>XML External Entity (XXE)</strong><br><span class="text-muted">XML upload / parsing endpoints. Try DOCTYPE injection</span></div></li>
+          </ul>
+        </div>
+        <div class="card">
+          <div class="card-title">ð¡ Medium / Low Priority</div>
+          <ul class="checklist">
+            <li><div class="check-dot dot-yellow"></div><div><strong>CSRF (Cross-Site Request Forgery)</strong><br><span class="text-muted">State-changing actions missing CSRF tokens</span></div></li>
+            <li><div class="check-dot dot-yellow"></div><div><strong>Security Misconfigurations</strong><br><span class="text-muted">Debug mode on, directory listing, exposed .env/.git</span></div></li>
+            <li><div class="check-dot dot-yellow"></div><div><strong>Sensitive Data Exposure</strong><br><span class="text-muted">API keys in JS, tokens in URLs, unencrypted PII</span></div></li>
+            <li><div class="check-dot dot-yellow"></div><div><strong>Subdomain Takeover</strong><br><span class="text-muted">Dangling DNS records pointing to unclaimed services</span></div></li>
+            <li><div class="check-dot dot-yellow"></div><div><strong>Open Redirect</strong><br><span class="text-muted">Redirect params that can point to external URLs</span></div></li>
+            <li><div class="check-dot dot-green"></div><div><strong>Information Disclosure</strong><br><span class="text-muted">Version numbers, stack traces, internal paths in errors</span></div></li>
+            <li><div class="check-dot dot-green"></div><div><strong>Clickjacking</strong><br><span class="text-muted">Missing X-Frame-Options / CSP frame-ancestors</span></div></li>
+            <li><div class="check-dot dot-green"></div><div><strong>HTTP Security Headers Missing</strong><br><span class="text-muted">HSTS, CSP, X-Content-Type-Options absent</span></div></li>
+          </ul>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">ð Responsible Disclosure Rules (Always Follow)</div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;">
+          <div style="background:var(--bg3);border-radius:8px;padding:14px;">
+            <div style="color:var(--green);font-weight:700;margin-bottom:6px;">â Always Do</div>
+            <div style="font-size:12px;color:var(--muted);line-height:1.8;">
+              â¢ Only test enrolled/authorized targets<br>
+              â¢ Document everything with screenshots<br>
+              â¢ Report immediately after confirming<br>
+              â¢ Give company 90 days to patch<br>
+              â¢ Keep findings confidential
+            </div>
+          </div>
+          <div style="background:var(--bg3);border-radius:8px;padding:14px;">
+            <div style="color:var(--red);font-weight:700;margin-bottom:6px;">â Never Do</div>
+            <div style="font-size:12px;color:var(--muted);line-height:1.8;">
+              â¢ Access/exfiltrate real user data<br>
+              â¢ Deface or disrupt services<br>
+              â¢ Use found creds to log in<br>
+              â¢ Run scanners outside scope<br>
+              â¢ Disclose before patch is live
+            </div>
+          </div>
+          <div style="background:var(--bg3);border-radius:8px;padding:14px;">
+            <div style="color:var(--accent);font-weight:700;margin-bottom:6px;">ð§ Disclosure Contacts</div>
+            <div style="font-size:12px;color:var(--muted);line-height:1.8;">
+              â¢ security@company.com<br>
+              â¢ HackerOne / Bugcrowd report<br>
+              â¢ /.well-known/security.txt<br>
+              â¢ LinkedIn security team<br>
+              â¢ CERT/national CERTs (fallback)
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- âââââââââââ SETTINGS âââââââââââ -->
+    <div class="page" id="page-settings">
+      <div class="page-title">Settings</div>
+      <div class="page-sub">Configure your dashboard and agent preferences</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+        <div class="card">
+          <div class="card-title">ð¤ Profile</div>
+          <div class="form-group" style="margin-bottom:12px;">
+            <label>Your Full Name</label>
+            <input id="settingName" placeholder="Security Researcher name" />
+          </div>
+          <div class="form-group" style="margin-bottom:12px;">
+            <label>Your Email (for reports)</label>
+            <input id="settingEmail" type="email" placeholder="you@gmail.com" />
+          </div>
+          <div class="form-group" style="margin-bottom:12px;">
+            <label>PGP Key / Handle (optional)</label>
+            <input id="settingPGP" placeholder="Optional PGP or handle" />
+          </div>
+          <button class="btn btn-primary" onclick="saveSettings()">ð¾ Save Profile</button>
+        </div>
+        <div class="card">
+          <div class="card-title">ð Change Password</div>
+          <div class="form-group" style="margin-bottom:12px;">
+            <label>Current Password</label>
+            <input type="password" id="curPass" />
+          </div>
+          <div class="form-group" style="margin-bottom:12px;">
+            <label>New Password</label>
+            <input type="password" id="newPass" />
+          </div>
+          <div class="form-group" style="margin-bottom:12px;">
+            <label>Confirm New Password</label>
+            <input type="password" id="confPass" />
+          </div>
+          <button class="btn btn-primary" onclick="changePassword()">ð Update Password</button>
+        </div>
+        <div class="card">
+          <div class="card-title">ð Hosting Guide</div>
+          <div style="font-size:13px;color:var(--muted);line-height:1.9;">
+            <strong style="color:var(--accent)">GitHub Pages (Free)</strong><br>
+            Upload this HTML to a GitHub repo â Settings â Pages â Deploy<br><br>
+            <strong style="color:var(--accent)">Railway.app (Free tier)</strong><br>
+            Deploy as static site â drag & drop this file<br><br>
+            <strong style="color:var(--accent)">DirectAdmin Hosting</strong><br>
+            Upload to public_html folder via File Manager<br><br>
+            <strong style="color:var(--accent)">Netlify (Recommended â Free)</strong><br>
+            netlify.com â drag & drop â instant live URL with HTTPS
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">ð Data Management</div>
+          <div style="display:flex;flex-direction:column;gap:10px;">
+            <button class="btn btn-outline" onclick="exportData()">ð¥ Export All Data (JSON)</button>
+            <button class="btn btn-outline" onclick="importData()">ð¤ Import Data</button>
+            <button class="btn btn-danger" onclick="clearData()">ðï¸ Clear All Data</button>
+            <p style="font-size:11px;color:var(--muted)">Data stored locally in browser. Export regularly to back up.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /main -->
+</div><!-- /app -->
+
+<!-- ADD FINDING MODAL -->
+<div class="modal-overlay" id="addFindingModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>ð Log New Bug Finding</h3>
+      <button class="modal-close" onclick="closeModal('addFindingModal')">Ã</button>
+    </div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Target Company</label>
+        <input id="f_company" placeholder="e.g. Google" />
+      </div>
+      <div class="form-group">
+        <label>Affected URL / System</label>
+        <input id="f_url" placeholder="https://..." />
+      </div>
+      <div class="form-group">
+        <label>Vulnerability Type</label>
+        <select id="f_vulntype">
+          <option>SQL Injection</option>
+          <option>XSS</option>
+          <option>IDOR</option>
+          <option>SSRF</option>
+          <option>RCE</option>
+          <option>Authentication Bypass</option>
+          <option>Broken Access Control</option>
+          <option>CSRF</option>
+          <option>XXE</option>
+          <option>Open Redirect</option>
+          <option>Subdomain Takeover</option>
+          <option>Information Disclosure</option>
+          <option>Security Misconfiguration</option>
+          <option>Other</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Severity</label>
+        <select id="f_severity">
+          <option>Critical</option>
+          <option>High</option>
+          <option>Medium</option>
+          <option>Low</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Status</label>
+        <select id="f_status">
+          <option>New</option>
+          <option>Reported</option>
+          <option>Acknowledged</option>
+          <option>Paid</option>
+          <option>Rejected</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Bounty Received ($)</label>
+        <input id="f_bounty" type="number" placeholder="0" />
+      </div>
+      <div class="form-group full">
+        <label>Description / Proof of Concept</label>
+        <textarea id="f_desc" placeholder="Describe the vulnerability, steps to reproduce, impact..."></textarea>
+      </div>
+      <div class="form-group">
+        <label>Platform</label>
+        <select id="f_platform">
+          <option>HackerOne</option>
+          <option>Bugcrowd</option>
+          <option>Direct Disclosure</option>
+          <option>Intigriti</option>
+          <option>YesWeHack</option>
+          <option>Other</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>CVSS Score (optional)</label>
+        <input id="f_cvss" placeholder="e.g. 9.8" type="number" min="0" max="10" step="0.1" />
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('addFindingModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveFinding()">ð¾ Save Finding</button>
+    </div>
+  </div>
+</div>
+
+<!-- ADD PROGRAM MODAL -->
+<div class="modal-overlay" id="addProgramModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>ð¯ Add Bug Bounty Program</h3>
+      <button class="modal-close" onclick="closeModal('addProgramModal')">Ã</button>
+    </div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Company / Program Name</label>
+        <input id="p_name" placeholder="e.g. Google VRP" />
+      </div>
+      <div class="form-group">
+        <label>Platform</label>
+        <select id="p_platform">
+          <option>HackerOne</option>
+          <option>Bugcrowd</option>
+          <option>Direct</option>
+          <option>Intigriti</option>
+          <option>YesWeHack</option>
+        </select>
+      </div>
+      <div class="form-group full">
+        <label>In-Scope Targets</label>
+        <textarea id="p_scope" placeholder="*.google.com, api.google.com, etc." style="min-height:60px;"></textarea>
+      </div>
+      <div class="form-group">
+        <label>Max Bounty ($)</label>
+        <input id="p_maxbounty" type="number" placeholder="e.g. 31337" />
+      </div>
+      <div class="form-group">
+        <label>Program URL</label>
+        <input id="p_url" placeholder="https://hackerone.com/..." />
+      </div>
+      <div class="form-group">
+        <label>Security Email</label>
+        <input id="p_email" placeholder="security@company.com" />
+      </div>
+      <div class="form-group">
+        <label>Priority</label>
+        <select id="p_priority">
+          <option>High</option>
+          <option>Medium</option>
+          <option>Low</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('addProgramModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveProgram()">ð¾ Save Program</button>
+    </div>
+  </div>
+</div>
+
+<!-- NOTIFY -->
+<div class="notify" id="notify"></div>
+
+<script>
+// âââââââââââââââââââââââââââââââââââââââââââ
+// STATE
+// âââââââââââââââââââââââââââââââââââââââââââ
+let findings = JSON.parse(localStorage.getItem('bbf') || '[]');
+let programs = JSON.parse(localStorage.getItem('bbp') || '[]');
+let settings = JSON.parse(localStorage.getItem('bbs') || '{"name":"Researcher","email":"","pgp":""}');
+let credentials = JSON.parse(localStorage.getItem('bbc') || '{"user":"admin","pass":"BugHunter@2024"}');
+let editingId = null;
+
+// âââââââââââââââââââââââââââââââââââââââââââ
+// AUTH
+// âââââââââââââââââââââââââââââââââââââââââââ
+function doLogin() {
+  const u = document.getElementById('loginUser').value.trim();
+  const p = document.getElementById('loginPass').value;
+  if (u === credentials.user && p === credentials.pass) {
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    document.getElementById('sidebarUser').textContent = 'ð¤ ' + (settings.name || u);
+    loadSettings();
+    renderAll();
+  } else {
+    document.getElementById('loginErr').style.display = 'block';
+  }
+}
+document.getElementById('loginPass').addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
+document.getElementById('loginUser').addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
+
+function doLogout() {
+  document.getElementById('loginScreen').style.display = 'flex';
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('loginUser').value = '';
+  document.getElementById('loginPass').value = '';
+  document.getElementById('loginErr').style.display = 'none';
+}
+
+function changePassword() {
+  const cur = document.getElementById('curPass').value;
+  const nw = document.getElementById('newPass').value;
+  const cf = document.getElementById('confPass').value;
+  if (cur !== credentials.pass) { notify('Current password incorrect', true); return; }
+  if (nw !== cf) { notify('Passwords do not match', true); return; }
+  if (nw.length < 8) { notify('Password must be 8+ characters', true); return; }
+  credentials.pass = nw;
+  localStorage.setItem('bbc', JSON.stringify(credentials));
+  notify('Password updated!');
+  ['curPass','newPass','confPass'].forEach(id => document.getElementById(id).value = '');
+}
+
+// âââââââââââââââââââââââââââââââââââââââââââ
+// NAVIGATION
+// âââââââââââââââââââââââââââââââââââââââââââ
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + id).classList.add('active');
+  const navItems = document.querySelectorAll('.nav-item');
+  navItems.forEach(n => { if(n.getAttribute('onclick')?.includes(id)) n.classList.add('active'); });
+  if (id === 'findings') renderFindings();
+  if (id === 'dashboard') renderDashboard();
+  if (id === 'programs') renderPrograms();
+  if (id === 'email') generateEmail();
+}
+
+// âââââââââââââââââââââââââââââââââââââââââââ
+// SAVE / RENDER
+// âââââââââââââââââââââââââââââââââââââââââââ
+function save() {
+  localStorage.setItem('bbf', JSON.stringify(findings));
+  localStorage.setItem('bbp', JSON.stringify(programs));
+}
+
+function renderAll() { renderDashboard(); renderFindings(); renderPrograms(); generateEmail(); }
+
+function renderDashboard() {
+  const total = findings.length;
+  const paid = findings.filter(f=>f.status==='Paid');
+  const totalBounty = paid.reduce((s,f)=>s+(parseFloat(f.bounty)||0),0);
+  const critical = findings.filter(f=>f.severity==='Critical').length;
+  const open = findings.filter(f=>['New','Reported','Acknowledged'].includes(f.status)).length;
+
+  document.getElementById('statsGrid').innerHTML = `
+    <div class="stat-card"><div class="label">Total Bugs Found</div><div class="value c-accent">${total}</div><div class="sub">All time</div></div>
+    <div class="stat-card"><div class="label">Total Bounties Earned</div><div class="value c-green">$${totalBounty.toLocaleString()}</div><div class="sub">${paid.length} paid bugs</div></div>
+    <div class="stat-card"><div class="label">Critical Bugs</div><div class="value c-critical">${critical}</div><div class="sub">High severity</div></div>
+    <div class="stat-card"><div class="label">Open / Pending</div><div class="value c-high">${open}</div><div class="sub">Awaiting response</div></div>
+  `;
+
+  const recent = [...findings].reverse().slice(0,5);
+  document.getElementById('recentFindings').innerHTML = recent.length ? recent.map(f => `
+    <tr>
+      <td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${f.company}</td>
+      <td>${f.vulntype}</td>
+      <td><span class="badge badge-${f.severity.toLowerCase()}">${f.severity}</span></td>
+      <td><span class="badge badge-${f.status.toLowerCase()}">${f.status}</span></td>
+    </tr>`).join('') : '<tr><td colspan="4" style="color:var(--muted);text-align:center;padding:20px;">No findings yet. Start logging bugs!</td></tr>';
+
+  const paidFindings = findings.filter(f=>f.bounty>0).reverse().slice(0,5);
+  document.getElementById('bountyTracker').innerHTML = paidFindings.length ? paidFindings.map(f => `
+    <tr>
+      <td>${f.company}</td>
+      <td>${f.vulntype}</td>
+      <td style="color:var(--green);font-weight:700;">$${parseFloat(f.bounty||0).toLocaleString()}</td>
+      <td><span class="badge badge-${f.status.toLowerCase()}">${f.status}</span></td>
+    </tr>`).join('') : '<tr><td colspan="4" style="color:var(--muted);text-align:center;padding:20px;">No bounties recorded yet.</td></tr>';
+}
+
+function renderFindings() {
+  const search = (document.getElementById('searchFindings')?.value||'').toLowerCase();
+  const sevFilter = document.getElementById('filterSeverity')?.value||'';
+  const statFilter = document.getElementById('filterStatus')?.value||'';
+  let data = [...findings].reverse().filter(f => {
+    const matchSearch = !search || f.company.toLowerCase().includes(search) || f.vulntype.toLowerCase().includes(search) || f.url.toLowerCase().includes(search);
+    const matchSev = !sevFilter || f.severity === sevFilter;
+    const matchStat = !statFilter || f.status === statFilter;
+    return matchSearch && matchSev && matchStat;
+  });
+  const tbody = document.getElementById('findingsTable');
+  if (!tbody) return;
+  tbody.innerHTML = data.length ? data.map((f,i) => `
+    <tr>
+      <td style="color:var(--muted)">${findings.length - findings.indexOf(f)}</td>
+      <td>
+        <div style="font-weight:600">${f.company}</div>
+        <div style="font-size:11px;color:var(--muted);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${f.url}</div>
+      </td>
+      <td>${f.vulntype}</td>
+      <td><span class="badge badge-${f.severity.toLowerCase()}">${f.severity}</span></td>
+      <td><span class="badge badge-${f.status.toLowerCase()}">${f.status}</span></td>
+      <td style="color:var(--green);font-weight:700">${f.bounty?'$'+parseFloat(f.bounty).toLocaleString():'â'}</td>
+      <td style="color:var(--muted);font-size:12px">${f.date}</td>
+      <td>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-sm btn-outline" onclick="editFinding('${f.id}')">âï¸</button>
+          <button class="btn btn-sm btn-green" onclick="quickEmail('${f.id}')">ð§</button>
+          <button class="btn btn-sm btn-danger" onclick="deleteFinding('${f.id}')">ðï¸</button>
+        </div>
+      </td>
+    </tr>`).join('') : '<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:30px">No findings match your filters.</td></tr>';
+}
+
+function renderPrograms() {
+  const el = document.getElementById('programsList');
+  if (!el) return;
+  el.innerHTML = programs.length ? programs.map(p => `
+    <div class="program-row">
+      <div style="flex:1">
+        <div class="flex-row">
+          <div class="program-name">${p.name}</div>
+          <span class="badge badge-${p.priority==='High'?'critical':p.priority==='Medium'?'medium':'low'}">${p.priority}</span>
+          <span class="badge badge-new">${p.platform}</span>
+        </div>
+        <div class="program-scope">Scope: ${p.scope||'Not specified'}</div>
+        ${p.email?`<div class="program-scope">ð§ ${p.email}</div>`:''}
+      </div>
+      <div style="text-align:right;font-size:13px;">
+        ${p.maxbounty?`<div style="color:var(--green);font-weight:700">Up to $${parseFloat(p.maxbounty).toLocaleString()}</div>`:''}
+        ${p.url?`<a href="${p.url}" target="_blank" style="color:var(--accent);font-size:12px">View Program â</a>`:''}
+      </div>
+      <button class="btn btn-sm btn-danger" style="margin-left:12px" onclick="deleteProgram('${p.id}')">ðï¸</button>
+    </div>`).join('') : '<div style="text-align:center;color:var(--muted);padding:30px">No programs added yet. Add your target programs above.</div>';
+}
+
+// âââââââââââââââââââââââââââââââââââââââââââ
+// CRUD
+// âââââââââââââââââââââââââââââââââââââââââââ
+function saveFinding() {
+  const f = {
+    id: editingId || Date.now().toString(),
+    company: document.getElementById('f_company').value.trim(),
+    url: document.getElementById('f_url').value.trim(),
+    vulntype: document.getElementById('f_vulntype').value,
+    severity: document.getElementById('f_severity').value,
+    status: document.getElementById('f_status').value,
+    bounty: document.getElementById('f_bounty').value,
+    desc: document.getElementById('f_desc').value.trim(),
+    platform: document.getElementById('f_platform').value,
+    cvss: document.getElementById('f_cvss').value,
+    date: new Date().toLocaleDateString()
+  };
+  if (!f.company) { notify('Company name required', true); return; }
+  if (editingId) {
+    const idx = findings.findIndex(x => x.id === editingId);
+    if (idx > -1) findings[idx] = f;
+    editingId = null;
+  } else {
+    findings.push(f);
+  }
+  save();
+  closeModal('addFindingModal');
+  renderAll();
+  notify('Finding saved! ð');
+}
+
+function editFinding(id) {
+  const f = findings.find(x => x.id === id);
+  if (!f) return;
+  editingId = id;
+  document.getElementById('f_company').value = f.company;
+  document.getElementById('f_url').value = f.url;
+  document.getElementById('f_vulntype').value = f.vulntype;
+  document.getElementById('f_severity').value = f.severity;
+  document.getElementById('f_status').value = f.status;
+  document.getElementById('f_bounty').value = f.bounty||'';
+  document.getElementById('f_desc').value = f.desc||'';
+  document.getElementById('f_platform').value = f.platform||'HackerOne';
+  document.getElementById('f_cvss').value = f.cvss||'';
+  openModal('addFindingModal');
+}
+
+function deleteFinding(id) {
+  if (!confirm('Delete this finding?')) return;
+  findings = findings.filter(f => f.id !== id);
+  save(); renderAll(); notify('Finding deleted.');
+}
+
+function saveProgram() {
+  const p = {
+    id: Date.now().toString(),
+    name: document.getElementById('p_name').value.trim(),
+    platform: document.getElementById('p_platform').value,
+    scope: document.getElementById('p_scope').value.trim(),
+    maxbounty: document.getElementById('p_maxbounty').value,
+    url: document.getElementById('p_url').value.trim(),
+    email: document.getElementById('p_email').value.trim(),
+    priority: document.getElementById('p_priority').value
+  };
+  if (!p.name) { notify('Program name required', true); return; }
+  programs.push(p);
+  save(); closeModal('addProgramModal'); renderPrograms();
+  notify('Program added! ð¯');
+}
+
+function deleteProgram(id) {
+  if (!confirm('Remove this program?')) return;
+  programs = programs.filter(p => p.id !== id);
+  save(); renderPrograms(); notify('Program removed.');
+}
+
+// âââââââââââââââââââââââââââââââââââââââââââ
+// EMAIL GENERATOR
+// âââââââââââââââââââââââââââââââââââââââââââ
+function generateEmail() {
+  const type = document.getElementById('emailType')?.value || 'initial';
+  const name = document.getElementById('emailYourName')?.value || settings.name || 'Security Researcher';
+  const company = document.getElementById('emailCompany')?.value || '[Company]';
+  const vuln = document.getElementById('emailVulnType')?.value || '[Vulnerability Type]';
+  const url = document.getElementById('emailURL')?.value || '[Affected URL]';
+  const severity = document.getElementById('emailSeverity')?.value || 'High';
+  const bounty = document.getElementById('emailBounty')?.value || '';
+  const desc = document.getElementById('emailDesc')?.value || '';
+
+  const co = company.toLowerCase().replace(/\s+/g,'-');
+  document.getElementById('prevCompany').textContent = co;
+
+  let subject = '', body = '';
+  const today = new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'});
+
+  if (type === 'initial') {
+    subject = `[Security Vulnerability Report] ${severity} â ${vuln} Found in ${company} Systems`;
+    body = `Dear ${company} Security Team,
+
+I hope this message finds you well. My name is ${name}, and I am an independent security researcher specializing in responsible vulnerability disclosure.
+
+During my authorized security research, I identified a ${severity.toUpperCase()} severity vulnerability in your system that requires immediate attention.
+
+âââââââââââââââââââââââââââââ
+VULNERABILITY DETAILS
+âââââââââââââââââââââââââââââ
+Type:          ${vuln}
+Severity:      ${severity}
+Affected URL:  ${url}
+Date Found:    ${today}
+${desc ? `\nDescription:\n${desc}` : ''}
+
+âââââââââââââââââââââââââââââ
+POTENTIAL IMPACT
+âââââââââââââââââââââââââââââ
+This vulnerability could allow an attacker to ${getImpact(vuln)}. Immediate remediation is strongly recommended.
+
+âââââââââââââââââââââââââââââ
+RESPONSIBLE DISCLOSURE
+âââââââââââââââââââââââââââââ
+I am committed to responsible disclosure and am happy to:
+â¢ Provide full technical proof-of-concept details
+â¢ Assist your team in reproducing the issue
+â¢ Verify the fix once implemented
+â¢ Maintain confidentiality until the issue is resolved
+${bounty ? `\nI would appreciate recognition via your bug bounty program. My suggested bounty for a ${severity} vulnerability of this nature is $${bounty}.` : ''}
+
+Please confirm receipt of this report within 5 business days. I have reserved full technical details pending your response and will follow responsible disclosure timelines (90 days).
+
+Best regards,
+${name}
+Security Researcher
+${settings.email || '[your-email@gmail.com]'}
+${settings.pgp ? 'PGP: ' + settings.pgp : ''}`;
+  }
+
+  else if (type === 'followup') {
+    subject = `[FOLLOW-UP] Security Vulnerability Report â ${vuln} in ${company}`;
+    body = `Dear ${company} Security Team,
+
+I am following up on my previous vulnerability report regarding a ${severity} ${vuln} vulnerability affecting ${url}.
+
+I sent my initial report on [INSERT ORIGINAL DATE] and have not yet received a response. I want to ensure this reached the appropriate team.
+
+This is a ${severity.toUpperCase()} severity issue. I remain committed to responsible disclosure and am available to discuss remediation options.
+
+Could you please:
+1. Confirm receipt of this report
+2. Provide an estimated timeline for review
+3. Indicate if you require additional technical details
+
+I will follow up again in 14 days if I do not hear back.
+
+Best regards,
+${name}
+${settings.email || '[your-email@gmail.com]'}`;
+  }
+
+  else if (type === 'offer') {
+    subject = `Security Vulnerability Found + Remediation Offer â ${company}`;
+    body = `Dear ${company} Security Team,
+
+My name is ${name}. I am a professional security researcher and I have identified a ${severity} security vulnerability in your systems.
+
+Vulnerability: ${vuln}
+Affected System: ${url}
+Severity: ${severity}
+
+I am reaching out with a professional offer:
+
+âââââââââââââââââââââââââââââ
+MY OFFER
+âââââââââââââââââââââââââââââ
+1. Full technical disclosure of the vulnerability
+2. Step-by-step reproduction instructions
+3. Recommended fix / patch guidance
+4. Verification testing after your fix is deployed
+${bounty ? `\nService fee: $${bounty} (negotiable based on your bug bounty program)` : ''}
+
+I am happy to sign an NDA and work directly with your development team. This offer is made in good faith under responsible disclosure principles.
+
+Please respond within 7 business days to discuss next steps.
+
+Best regards,
+${name}
+${settings.email || '[your-email@gmail.com]'}`;
+  }
+
+  else if (type === 'payment') {
+    subject = `Bug Bounty Payment Request â ${vuln} Report â ${company}`;
+    body = `Dear ${company} Security / Finance Team,
+
+Thank you for acknowledging the ${severity} vulnerability (${vuln}) I reported in your system at ${url}.
+
+As discussed and per your bug bounty program terms, I am formally requesting the agreed bounty payment.
+
+âââââââââââââââââââââââââââââ
+PAYMENT DETAILS
+âââââââââââââââââââââââââââââ
+Researcher:    ${name}
+Report Date:   [ORIGINAL REPORT DATE]
+Vulnerability: ${vuln}
+Severity:      ${severity}
+Agreed Amount: $${bounty||'[AMOUNT]'}
+Payment Email: ${settings.email||'[your-email]'}
+
+Preferred payment method: Bank Transfer / PayPal / Crypto
+[Please specify your preferred method]
+
+Thank you for running a responsible bug bounty program. I look forward to continued collaboration.
+
+Best regards,
+${name}
+${settings.email || '[your-email@gmail.com]'}`;
+  }
+
+  else if (type === 'thankyou') {
+    subject = `Thank You + Closing Report â ${company} Bug Bounty`;
+    body = `Dear ${company} Security Team,
+
+I am writing to confirm that the ${severity} ${vuln} vulnerability I reported on [DATE] has been successfully verified as fixed.
+
+Thank you for your prompt response and professional handling of this report. Your security team's efficiency is commendable.
+
+Summary of resolved report:
+â¢ Vulnerability: ${vuln}
+â¢ Severity: ${severity}
+â¢ Affected: ${url}
+â¢ Status: RESOLVED â
+
+I look forward to participating in your bug bounty program in the future. Please feel free to reach out if you need any additional assistance.
+
+Best regards,
+${name}
+${settings.email || '[your-email@gmail.com]'}`;
+  }
+
+  else if (type === 'escalate') {
+    subject = `[ESCALATION â 30 DAYS] Unacknowledged ${severity} Vulnerability â ${company}`;
+    body = `Dear ${company} Security & Legal Teams,
+
+This is a formal escalation notice. I reported a ${severity.toUpperCase()} security vulnerability (${vuln}) affecting ${url} on [ORIGINAL DATE], 30 days ago, and have not received any acknowledgment.
+
+Per responsible disclosure standards (ISO/IEC 29147), I have:
+â¢ Sent the initial report on [DATE]
+â¢ Followed up on [DATE]
+â¢ Waited the standard 30-day acknowledgment period
+
+I am now notifying you that if I do not receive a response within 14 additional days, I will:
+1. Report this vulnerability to relevant national CERT organizations
+2. Consider coordinated public disclosure after a 90-day total window
+
+This escalation is not a threat â it is standard responsible disclosure practice designed to protect end users.
+
+I strongly urge you to contact me immediately to resolve this professionally.
+
+${name}
+${settings.email || '[your-email@gmail.com]'}`;
+  }
+
+  document.getElementById('prevSubject').textContent = subject;
+  document.getElementById('emailPreview').textContent = `Subject: ${subject}\n\n${body}`;
+  document.getElementById('emailPreview').dataset.body = body;
+  document.getElementById('emailPreview').dataset.subject = subject;
+}
+
+function getImpact(vuln) {
+  const impacts = {
+    'SQL Injection': 'access, modify, or delete your entire database, exposing sensitive user data',
+    'XSS': 'steal user session cookies, hijack accounts, or spread malware to your users',
+    'IDOR': 'access other users\' private data and accounts without authorization',
+    'SSRF': 'scan and attack internal network services behind your firewall',
+    'RCE': 'execute arbitrary commands on your server and gain full system control',
+    'Authentication Bypass': 'access privileged accounts and administrative interfaces without credentials',
+    'CSRF': 'perform unauthorized actions on behalf of authenticated users',
+    'Subdomain Takeover': 'host malicious content on your trusted domain to phish your users',
+  };
+  return impacts[vuln] || 'compromise your systems and expose sensitive data';
+}
+
+function copyEmail() {
+  const preview = document.getElementById('emailPreview');
+  const text = `Subject: ${preview.dataset.subject}\n\n${preview.dataset.body}`;
+  navigator.clipboard.writeText(text).then(() => notify('Email copied to clipboard! ð'));
+}
+
+function openGmail() {
+  const company = document.getElementById('emailCompany').value.trim().toLowerCase().replace(/\s+/g,'');
+  const preview = document.getElementById('emailPreview');
+  const subject = encodeURIComponent(preview.dataset.subject || '');
+  const body = encodeURIComponent(preview.dataset.body || '');
+  window.open(`https://mail.google.com/mail/?view=cm&to=security@${company}.com&su=${subject}&body=${body}`, '_blank');
+  notify('Opening Gmail... ð§');
+}
+
+function quickEmail(id) {
+  const f = findings.find(x => x.id === id);
+  if (!f) return;
+  showPage('email');
+  setTimeout(() => {
+    document.getElementById('emailCompany').value = f.company;
+    document.getElementById('emailVulnType').value = f.vulntype;
+    document.getElementById('emailURL').value = f.url;
+    document.getElementById('emailSeverity').value = f.severity;
+    document.getElementById('emailDesc').value = f.desc || '';
+    generateEmail();
+  }, 100);
+}
+
+// âââââââââââââââââââââââââââââââââââââââââââ
+// SETTINGS
+// âââââââââââââââââââââââââââââââââââââââââââ
+function loadSettings() {
+  document.getElementById('settingName').value = settings.name || '';
+  document.getElementById('settingEmail').value = settings.email || '';
+  document.getElementById('settingPGP').value = settings.pgp || '';
+}
+function saveSettings() {
+  settings.name = document.getElementById('settingName').value.trim();
+  settings.email = document.getElementById('settingEmail').value.trim();
+  settings.pgp = document.getElementById('settingPGP').value.trim();
+  localStorage.setItem('bbs', JSON.stringify(settings));
+  document.getElementById('sidebarUser').textContent = 'ð¤ ' + (settings.name || 'Researcher');
+  notify('Settings saved! â');
+}
+
+// âââââââââââââââââââââââââââââââââââââââââââ(¼¼5=0(¼¼VCVCVCVCVCVCVCVCVCVCVCVCVCVCVCVCVCVCVCVCVCVCVCVCVCVCVCVCVCVCVCVCVCVCVCVCVCVCVCVCVCVCV@)Õ¹Ñ¥½¸½Á¹5½°¡¥¤ì(½Õµ¹Ð¹Ñ±µ¹Ñ	å%¡¥¤¹±ÍÍ1¥ÍÐ¹ ½Á¸¤ì)ô)Õ¹Ñ¥½¸±½Í5½°¡¥¤ì(½Õµ¹Ð¹Ñ±µ¹Ñ	å%¡¥¤¹±ÍÍ1¥ÍÐ¹Éµ½Ù ½Á¸¤ì(¥Ñ¥¹%ô¹Õ±°ì)ô)½Õµ¹Ð¹ÅÕÉåM±Ñ½É±° ¹µ½°µ½ÙÉ±ä¤¹½É ¡´ôøì(´¹Ù¹Ñ1¥ÍÑ¹È ±¥¬°ôøì¥¡¹ÑÉÐôôô´¤´¹±ÍÍ1¥ÍÐ¹Éµ½Ù ½Á¸¤ìô¤ì)ô¤ì((¼¼VCVCVCVCVCVCVCVCVCVCVCVCVCVCVCVCVCVCVCVCVCVCVCVCVCVCVCVCVCVCVCVCVCVCVCVCVCVCVCVCVCVCV@),¿ DATA EXPORT / IMPORT
+// âââââââââââââââââââââââââââââââââââââââââââ
+function exportData() {
+  const data = { findings, programs, settings, exportedAt: new Date().toISOString() };
+  const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `bughunter-backup-${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+  notify('Data exported! ð¥');
+}
+function importData() {
+  const input = document.createElement('input');
+  input.type = 'file'; input.accept = '.json';
+  input.onchange = e => {
+    const file = e.target.files[0];
+    const reader = new FileReader();
+    reader.onload = ev => {
+      try {
+        const data = JSON.parse(ev.target.result);
+        if (data.findings) findings = data.findings;
+        if (data.programs) programs = data.programs;
+        if (data.settings) { settings = data.settings; loadSettings(); }
+        save(); renderAll(); notify('Data imported! â');
+      } catch { notify('Invalid file format', true); }
+    };
+    reader.readAsText(file);
+  };
+  input.click();
+}
+function clearData() {
+  if (!confirm('â ï¸ This will delete ALL your findings and programs. Are you sure?')) return;
+  findings = []; programs = [];
+  save(); renderAll(); notify('All data cleared.');
+}
+
+// âââââââââââââââââââââââââââââââââââââââââââ
+// NOTIFY
+// âââââââââââââââââââââââââââââââââââââââââââ
+function notify(msg, err=false) {
+  const el = document.getElementById('notify');
+  el.textContent = msg;
+  el.className = 'notify' + (err?' err':'');
+  el.style.display = 'block';
+  setTimeout(() => el.style.display = 'none', 3000);
+}
+
+// Load settings input values
+loadSettings();
+</script>
+</body>
+</html>
